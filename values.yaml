@@ -7,7 +7,7 @@ persistence:
 forgejo:
   image: codeberg.org/forgejo/forgejo:9
   replicas: 1
-  rootUrl: "http://forgejo-forgejo-1.duckbill-lime.ts.net:3000/"
+  rootUrl: ""
   service:
     type: ClusterIP
     port: 3000
@@ -15,7 +15,7 @@ forgejo:
 runner:
   replicas: 2
   authKey: ""
-  forgejoInstanceUrl: "http://forgejo-forgejo-1.duckbill-lime.ts.net:3000"
+  forgejoInstanceUrl: ""
   token: ""
   service:
     port: 8080
