@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: forgejo-runner
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.runner.replicas }}
+  selector:
+    matchLabels:
+      app: forgejo-runner
+  template:
+    metadata:
+      labels:
+        app: forgejo-runner
+    spec:
+      restartPolicy: Always
+      volumes:
+      - name: docker-certs
+        emptyDir: {}
+      - name: runner-data
+        emptyDir: {}
+      - name: tailscale-state
+        emptyDir: {}
+      - name: tailscale-run
+        emptyDir: {}
+      - name: dev-net-tun
+        hostPath:
+          path: /dev/net/tun
+      containers:
+      - name: tailscale
+        image: tailscale/tailscale:latest
+        securityContext:
+          capabilities:
+            add:
+              - NET_ADMIN
+              - NET_RAW
+          privileged: true
+        command:
+          - sh
+        args:
+          - -c
+          - |
+            /usr/local/bin/tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock &
+            sleep 5
+            tailscale up --auth-key={{ .Values.runner.authKey }}
+            wait
+        volumeMounts:
+        - name: tailscale-state
+          mountPath: /var/lib/tailscale
+        - name: tailscale-run
+          mountPath: /var/run/tailscale
+        - name: dev-net-tun
+          mountPath: /dev/net/tun
+      - name: runner-register
+        image: code.forgejo.org/forgejo/runner:3.2.0
+        command: ["sh", "-c"]
+        args:
+          - |
+            forgejo-runner register --no-interactive --token {{ .Values.runner.token }} --name $(RUNNER_NAME) --instance $(FORGEJO_INSTANCE_URL);
+            echo "Runner registered successfully. Sleeping to prevent restart.";
+            sleep infinity;
+        env:
+        - name: RUNNER_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: FORGEJO_INSTANCE_URL
+          value: {{ .Values.runner.forgejoInstanceUrl }}
+        resources:
+          limits:
+            cpu: "0.50"
+            memory: "64Mi"
+        volumeMounts:
+        - name: runner-data
+          mountPath: /data
+      - name: runner
+        image: code.forgejo.org/forgejo/runner:3.0.0
+        command: ["sh", "-c", "while ! nc -z localhost 2376 </dev/null; do echo 'waiting for docker daemon...'; sleep 5; done; forgejo-runner daemon"]
+        env:
+        - name: DOCKER_HOST
+          value: tcp://localhost:2376
+        - name: DOCKER_CERT_PATH
+          value: /certs/client
+        - name: DOCKER_TLS_VERIFY
+          value: "1"
+        volumeMounts:
+        - name: docker-certs
+          mountPath: /certs
+        - name: runner-data
+          mountPath: /data
+      - name: daemon
+        image: docker:23.0.6-dind
+        env:
+        - name: DOCKER_TLS_CERTDIR
+          value: /certs
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: docker-certs
+          mountPath: /certs

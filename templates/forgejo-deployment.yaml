@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: forgejo
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.forgejo.replicas }}
+  selector:
+    matchLabels:
+      app: forgejo
+  template:
+    metadata:
+      labels:
+        app: forgejo
+    spec:
+      containers:
+        - name: forgejo
+          image: {{ .Values.forgejo.image }}
+          ports:
+            - containerPort: {{ .Values.forgejo.service.port }}
+          volumeMounts:
+            - name: forgejo-data
+              mountPath: /data
+          env:
+            - name: ROOT_URL
+              value: {{ .Values.forgejo.rootUrl }}
+      volumes:
+        - name: forgejo-data
+          persistentVolumeClaim:
+            claimName: forgejo-pvc

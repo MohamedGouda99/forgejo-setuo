@@ -1,0 +1,21 @@
+namespace: forgejo
+
+persistence:
+  storageClass: ""
+  size: 10Gi
+
+forgejo:
+  image: codeberg.org/forgejo/forgejo:9
+  replicas: 1
+  rootUrl: "http://forgejo-forgejo-1.duckbill-lime.ts.net:3000/"
+  service:
+    type: ClusterIP
+    port: 3000
+
+runner:
+  replicas: 2
+  authKey: ""
+  forgejoInstanceUrl: "http://forgejo-forgejo-1.duckbill-lime.ts.net:3000"
+  token: ""
+  service:
+    port: 8080

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: forgejo-runner
+  namespace: {{ .Values.namespace }}
+  annotations:
+    tailscale.com/expose: "true"
+spec:
+  selector:
+    app: forgejo-runner
+  ports:
+    - protocol: TCP
+      port: {{ .Values.runner.service.port }}
+      targetPort: {{ .Values.runner.service.port }}
